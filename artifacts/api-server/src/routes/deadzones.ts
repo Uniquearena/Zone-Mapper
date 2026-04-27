@@ -16,6 +16,7 @@ function serialize(d: Deadzone) {
     description: d.description,
     type: d.type,
     severity: d.severity,
+    signalStrength: d.signalStrength,
     latitude: d.latitude,
     longitude: d.longitude,
     carrier: d.carrier,
@@ -55,6 +56,28 @@ router.get("/deadzones/recent", async (req: Request, res: Response) => {
 
 router.post("/deadzones", async (req: Request, res: Response) => {
   const body = CreateDeadzoneBody.parse(req.body);
+
+  // Lightweight duplicate filter: same carrier + ~50m radius within last 5 min
+  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const dupes = await db
+    .select({ id: deadzonesTable.id })
+    .from(deadzonesTable)
+    .where(
+      and(
+        eq(deadzonesTable.carrier, body.carrier),
+        sql`${deadzonesTable.createdAt} > ${fiveMinAgo}`,
+        sql`abs(${deadzonesTable.latitude} - ${body.latitude}) < 0.0005`,
+        sql`abs(${deadzonesTable.longitude} - ${body.longitude}) < 0.0005`,
+      ),
+    )
+    .limit(1);
+  if (dupes.length > 0) {
+    res
+      .status(409)
+      .json({ error: "Duplicate report at same location within last 5 minutes" });
+    return;
+  }
+
   const [row] = await db
     .insert(deadzonesTable)
     .values({
@@ -62,6 +85,7 @@ router.post("/deadzones", async (req: Request, res: Response) => {
       description: body.description,
       type: body.type,
       severity: body.severity,
+      signalStrength: body.signalStrength ?? null,
       latitude: body.latitude,
       longitude: body.longitude,
       carrier: body.carrier,

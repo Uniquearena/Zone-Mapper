@@ -3,7 +3,7 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: Deadzone Tracker API
+  description: Dead Zone Tracker API (India)
 servers:
   - url: /api
     description: Base API path
@@ -14,6 +14,8 @@ tags:
     description: Deadzone reports
   - name: stats
     description: Aggregate statistics
+  - name: clusters
+    description: DBSCAN cluster analysis
 paths:
   /healthz:
     get:
@@ -188,6 +190,33 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/CarrierStat"
+  /clusters:
+    get:
+      operationId: getClusters
+      tags: [clusters]
+      summary: DBSCAN clusters of nearby low-signal reports
+      parameters:
+        - in: query
+          name: epsKm
+          description: DBSCAN neighborhood radius in kilometers
+          schema:
+            type: number
+            default: 2
+        - in: query
+          name: minPts
+          description: DBSCAN minimum points to form a dense cluster
+          schema:
+            type: integer
+            default: 3
+      responses:
+        "200":
+          description: Clusters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Cluster"
 components:
   schemas:
     HealthStatus:
@@ -229,6 +258,10 @@ components:
           $ref: "#/components/schemas/DeadzoneType"
         severity:
           $ref: "#/components/schemas/DeadzoneSeverity"
+        signalStrength:
+          type: integer
+          nullable: true
+          description: Measured signal strength in dBm (e.g. -110)
         latitude:
           type: number
         longitude:
@@ -264,6 +297,9 @@ components:
           $ref: "#/components/schemas/DeadzoneType"
         severity:
           $ref: "#/components/schemas/DeadzoneSeverity"
+        signalStrength:
+          type: integer
+          description: Measured signal strength in dBm (e.g. -110)
         latitude:
           type: number
         longitude:
@@ -294,6 +330,9 @@ components:
           type: integer
         activeCities:
           type: integer
+        avgSignalStrength:
+          type: number
+          nullable: true
         byType:
           type: array
           items:
@@ -338,3 +377,48 @@ components:
           type: integer
         avgConfirmations:
           type: number
+        avgSignalStrength:
+          type: number
+          nullable: true
+    Cluster:
+      type: object
+      required:
+        [
+          id,
+          centroidLat,
+          centroidLng,
+          count,
+          radiusKm,
+          confidence,
+          topSeverity,
+          topCarrier,
+          lastUpdated,
+        ]
+      properties:
+        id:
+          type: integer
+        centroidLat:
+          type: number
+        centroidLng:
+          type: number
+        count:
+          type: integer
+        radiusKm:
+          type: number
+        confidence:
+          type: number
+          description: Weighted confidence score 0-1 based on recency, density and confirmations
+        avgSignalStrength:
+          type: number
+          nullable: true
+        topSeverity:
+          $ref: "#/components/schemas/DeadzoneSeverity"
+        topCarrier:
+          type: string
+        lastUpdated:
+          type: string
+          format: date-time
+        reportIds:
+          type: array
+          items:
+            type: integer

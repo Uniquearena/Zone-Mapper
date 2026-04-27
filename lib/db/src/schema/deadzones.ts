@@ -13,6 +13,7 @@ export const deadzonesTable = pgTable("deadzones", {
   description: text("description").notNull(),
   type: text("type").notNull(),
   severity: text("severity").notNull(),
+  signalStrength: integer("signal_strength"),
   latitude: doublePrecision("latitude").notNull(),
   longitude: doublePrecision("longitude").notNull(),
   carrier: text("carrier").notNull(),

@@ -84,19 +84,20 @@ export default function Reports() {
               <TableHead className="font-mono text-xs">TYPE</TableHead>
               <TableHead className="font-mono text-xs">SEVERITY</TableHead>
               <TableHead className="font-mono text-xs">CARRIER</TableHead>
+              <TableHead className="font-mono text-xs text-right">SIGNAL</TableHead>
               <TableHead className="font-mono text-xs text-right">DATE</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   Intercepting signals...
                 </TableCell>
               </TableRow>
             ) : filteredDeadzones?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   No deadzones found matching criteria.
                 </TableCell>
               </TableRow>
@@ -126,6 +127,9 @@ export default function Reports() {
                       </Badge>
                     </TableCell>
                     <TableCell className="font-mono text-sm">{report.carrier}</TableCell>
+                    <TableCell className="font-mono text-xs text-right text-muted-foreground">
+                      {report.signalStrength != null ? `${report.signalStrength} dBm` : "—"}
+                    </TableCell>
                     <TableCell className="text-right text-sm text-muted-foreground">
                       {format(new Date(report.createdAt), 'MMM dd, yyyy')}
                     </TableCell>

@@ -17,7 +17,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container flex h-14 items-center justify-between px-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2 font-mono font-bold tracking-tighter text-primary">
             <Radio className="h-5 w-5" />
-            <span>DEADZONE_TRACKER</span>
+            <span className="hidden sm:inline">DEAD_ZONE_TRACKER</span>
+            <span className="sm:hidden">DZT</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 border border-primary/30 ml-1">IN</span>
           </Link>
           <nav className="flex items-center space-x-1 sm:space-x-4">
             {navItems.map((item) => (

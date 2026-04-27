@@ -2,7 +2,7 @@ import { useRoute, useLocation } from "wouter";
 import { format } from "date-fns";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, AlertTriangle, ShieldAlert, Trash2, CheckCircle2, User, MapPin } from "lucide-react";
+import { ArrowLeft, AlertTriangle, ShieldAlert, Trash2, CheckCircle2, User, MapPin, Signal } from "lucide-react";
 import {
   useGetDeadzone,
   useConfirmDeadzone,
@@ -116,6 +116,12 @@ export default function ReportDetail() {
               <Badge variant="secondary" className="font-mono bg-primary/20 text-primary border-primary/30">
                 {report.carrier}
               </Badge>
+              {report.signalStrength != null && (
+                <Badge variant="outline" className="font-mono">
+                  <Signal className="mr-1 h-3 w-3" />
+                  {report.signalStrength} dBm
+                </Badge>
+              )}
             </div>
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">{report.title}</h1>
             <div className="flex items-center gap-4 text-sm text-muted-foreground font-mono">

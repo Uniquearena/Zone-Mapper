@@ -11,6 +11,7 @@ router.get("/stats/summary", async (_req: Request, res: Response) => {
       totalReports: sql<number>`count(*)::int`,
       totalConfirmations: sql<number>`coalesce(sum(${deadzonesTable.confirmations}), 0)::int`,
       uniqueCarriers: sql<number>`count(distinct ${deadzonesTable.carrier})::int`,
+      avgSignalStrength: sql<number | null>`avg(${deadzonesTable.signalStrength})::float`,
     })
     .from(deadzonesTable);
 
@@ -18,6 +19,7 @@ router.get("/stats/summary", async (_req: Request, res: Response) => {
     totalReports: 0,
     totalConfirmations: 0,
     uniqueCarriers: 0,
+    avgSignalStrength: null,
   };
 
   const byType = await db
@@ -50,6 +52,7 @@ router.get("/stats/summary", async (_req: Request, res: Response) => {
     totalConfirmations: totals.totalConfirmations,
     uniqueCarriers: totals.uniqueCarriers,
     activeCities: cityRows.length,
+    avgSignalStrength: totals.avgSignalStrength ?? null,
     byType: byType.map((r) => ({ type: r.type, count: r.count })),
     bySeverity: bySeverity.map((r) => ({
       severity: r.severity,
@@ -105,6 +108,7 @@ router.get("/stats/carriers", async (_req: Request, res: Response) => {
       carrier: deadzonesTable.carrier,
       count: sql<number>`count(*)::int`,
       avgConfirmations: sql<number>`avg(${deadzonesTable.confirmations})::float`,
+      avgSignalStrength: sql<number | null>`avg(${deadzonesTable.signalStrength})::float`,
     })
     .from(deadzonesTable)
     .groupBy(deadzonesTable.carrier)
@@ -115,6 +119,7 @@ router.get("/stats/carriers", async (_req: Request, res: Response) => {
       carrier: r.carrier,
       count: r.count,
       avgConfirmations: r.avgConfirmations,
+      avgSignalStrength: r.avgSignalStrength,
     })),
   );
 });

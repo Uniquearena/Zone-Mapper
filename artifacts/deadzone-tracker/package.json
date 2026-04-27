@@ -76,5 +76,9 @@
     "vite": "catalog:",
     "wouter": "^3.3.5",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "@types/leaflet.heat": "^0.2.5",
+    "leaflet.heat": "^0.2.0"
   }
 }
