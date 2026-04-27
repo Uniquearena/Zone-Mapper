@@ -3,20 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Deadzone Tracker API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: deadzones
+    description: Deadzone reports
+  - name: stats
+    description: Aggregate statistics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +27,167 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /deadzones:
+    get:
+      operationId: listDeadzones
+      tags: [deadzones]
+      summary: List all deadzone reports
+      parameters:
+        - in: query
+          name: type
+          schema:
+            $ref: "#/components/schemas/DeadzoneType"
+        - in: query
+          name: severity
+          schema:
+            $ref: "#/components/schemas/DeadzoneSeverity"
+        - in: query
+          name: carrier
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of deadzones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Deadzone"
+    post:
+      operationId: createDeadzone
+      tags: [deadzones]
+      summary: Report a new deadzone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeadzone"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deadzone"
+  /deadzones/{id}:
+    get:
+      operationId: getDeadzone
+      tags: [deadzones]
+      summary: Get a deadzone by id
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deadzone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeadzoneDetail"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteDeadzone
+      tags: [deadzones]
+      summary: Delete a deadzone report
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+  /deadzones/{id}/confirm:
+    post:
+      operationId: confirmDeadzone
+      tags: [deadzones]
+      summary: Confirm a deadzone report (vote it as still bad)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Deadzone"
+  /deadzones/recent:
+    get:
+      operationId: listRecentDeadzones
+      tags: [deadzones]
+      summary: List most recent deadzone reports
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Recent list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Deadzone"
+  /stats/summary:
+    get:
+      operationId: getStatsSummary
+      tags: [stats]
+      summary: Aggregate dashboard statistics
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatsSummary"
+  /stats/hotspots:
+    get:
+      operationId: getHotspots
+      tags: [stats]
+      summary: Geographic clusters with the most deadzones
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 8
+      responses:
+        "200":
+          description: Hotspot clusters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Hotspot"
+  /stats/carriers:
+    get:
+      operationId: getCarrierStats
+      tags: [stats]
+      summary: Deadzone counts grouped by carrier
+      responses:
+        "200":
+          description: Carrier breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CarrierStat"
 components:
   schemas:
     HealthStatus:
@@ -31,6 +195,146 @@ components:
       properties:
         status:
           type: string
+      required: [status]
+    DeadzoneType:
+      type: string
+      enum: [cellular, wifi, gps, satellite]
+    DeadzoneSeverity:
+      type: string
+      enum: [low, medium, high, total]
+    Deadzone:
+      type: object
       required:
-        - status
-
+        [
+          id,
+          title,
+          description,
+          type,
+          severity,
+          latitude,
+          longitude,
+          carrier,
+          reporter,
+          confirmations,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          $ref: "#/components/schemas/DeadzoneType"
+        severity:
+          $ref: "#/components/schemas/DeadzoneSeverity"
+        latitude:
+          type: number
+        longitude:
+          type: number
+        carrier:
+          type: string
+        reporter:
+          type: string
+        confirmations:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    DeadzoneDetail:
+      allOf:
+        - $ref: "#/components/schemas/Deadzone"
+        - type: object
+          properties:
+            address:
+              type: string
+              nullable: true
+    CreateDeadzone:
+      type: object
+      required:
+        [title, description, type, severity, latitude, longitude, carrier, reporter]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        type:
+          $ref: "#/components/schemas/DeadzoneType"
+        severity:
+          $ref: "#/components/schemas/DeadzoneSeverity"
+        latitude:
+          type: number
+        longitude:
+          type: number
+        carrier:
+          type: string
+        reporter:
+          type: string
+        address:
+          type: string
+    StatsSummary:
+      type: object
+      required:
+        [
+          totalReports,
+          totalConfirmations,
+          uniqueCarriers,
+          activeCities,
+          byType,
+          bySeverity,
+        ]
+      properties:
+        totalReports:
+          type: integer
+        totalConfirmations:
+          type: integer
+        uniqueCarriers:
+          type: integer
+        activeCities:
+          type: integer
+        byType:
+          type: array
+          items:
+            type: object
+            required: [type, count]
+            properties:
+              type:
+                $ref: "#/components/schemas/DeadzoneType"
+              count:
+                type: integer
+        bySeverity:
+          type: array
+          items:
+            type: object
+            required: [severity, count]
+            properties:
+              severity:
+                $ref: "#/components/schemas/DeadzoneSeverity"
+              count:
+                type: integer
+    Hotspot:
+      type: object
+      required: [label, latitude, longitude, count, topType]
+      properties:
+        label:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        count:
+          type: integer
+        topType:
+          $ref: "#/components/schemas/DeadzoneType"
+    CarrierStat:
+      type: object
+      required: [carrier, count, avgConfirmations]
+      properties:
+        carrier:
+          type: string
+        count:
+          type: integer
+        avgConfirmations:
+          type: number

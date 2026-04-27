@@ -1,27 +1,52 @@
-# Workspace
+# Deadzone Tracker
 
-## Overview
+A community-powered map for reporting and exploring signal dead zones (cellular, WiFi, GPS, satellite). Users can drop pins on a world map, browse a searchable intel log, and view aggregate analytics.
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+## Architecture
 
-## Stack
+- **Monorepo**: pnpm workspaces (see `pnpm-workspace.yaml`)
+- **API server**: `artifacts/api-server` — Express 5 + Drizzle ORM + PostgreSQL
+- **Web app**: `artifacts/deadzone-tracker` — React + Vite + Wouter + React Query + shadcn/ui + Leaflet (preview path `/`)
+- **Shared libs**:
+  - `lib/api-spec` — OpenAPI 3 spec, source of truth for routes/types
+  - `lib/api-zod` — generated Zod schemas
+  - `lib/api-client-react` — generated React Query hooks
+  - `lib/db` — Drizzle schema + migrations
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+## Data model
 
-## Key Commands
+`deadzones` table (see `lib/db/src/schema/deadzones.ts`):
+- `type`: cellular | wifi | gps | satellite
+- `severity`: low | medium | high | total
+- location (lat/lng), title, description, carrier, address, confirmations counter
+- timestamps, optional reporter handle
 
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
+## API endpoints
 
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+All under `/api/deadzones` plus `/api/stats`:
+- CRUD (list/get/create/update/delete) with type/severity/bbox filters
+- `POST /:id/confirm` — increment confirmation counter
+- `GET /recent?limit=` — recent reports for live feed
+- `GET /stats/summary` — totals, severity breakdown, type breakdown
+- `GET /stats/hotspots` — top reporting cities
+- `GET /stats/carriers` — top carriers by report count
+
+## Frontend pages
+
+- `/` — Leaflet map with type/severity filters, recent activity sidebar, click-to-report FAB
+- `/reports` — searchable, filterable signal intel log table
+- `/reports/:id` — detail view with mini-map and confirm button
+- `/stats` — Network Intelligence dashboard with bar/pie charts (Recharts)
+- `/about` — project overview
+
+## Theme
+
+Dark technical OSINT aesthetic, cyan accent (`hsl(188 86% 43%)`), Space Mono / Space Grotesk fonts, sharp corners. Map uses Carto dark tiles.
+
+## Workflows
+
+- `artifacts/api-server: API Server`
+- `artifacts/deadzone-tracker: web`
+- `artifacts/mockup-sandbox: Component Preview Server`
+
+Database has been seeded with 30 realistic reports across NYC, SF, Chicago, Seattle, national parks, London, Tokyo, and Sydney.

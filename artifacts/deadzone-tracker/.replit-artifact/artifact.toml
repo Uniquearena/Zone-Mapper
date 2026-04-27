@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Deadzone Tracker"
+version = "1.0.0"
+id = "artifacts/deadzone-tracker"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25477
+
+[services.development]
+run = "pnpm --filter @workspace/deadzone-tracker run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/deadzone-tracker", "run", "build" ]
+publicDir = "artifacts/deadzone-tracker/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25477"
+BASE_PATH = "/"
