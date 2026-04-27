@@ -261,7 +261,7 @@ export function CreateReportDialog({ open, onOpenChange, initialLocation }: Prop
             </div>
 
             <div className="space-y-2">
-              <FormLabel>Location</FormLabel>
+              <div className="text-sm font-medium">Location</div>
               <div className="text-xs text-muted-foreground mb-2">Click map to set pin</div>
               <div className="h-[200px] rounded-md overflow-hidden border border-border">
                 <MapContainer 
