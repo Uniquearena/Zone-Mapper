@@ -64,6 +64,9 @@ import { HeatmapLayer } from "@/components/HeatmapLayer";
 import { ClusterInsightsPanel } from "@/components/ClusterInsightsPanel";
 import { RoutePlanner } from "@/components/RoutePlanner";
 import { RoutePolylines } from "@/components/RoutePolylines";
+import { RouteAlertBanner } from "@/components/RouteAlertBanner";
+import { JourneyMarker } from "@/components/JourneyMarker";
+import { useRouteJourney } from "@/hooks/useRouteJourney";
 import { useToast } from "@/hooks/use-toast";
 
 function MapEvents({ onMapClick }: { onMapClick: (e: L.LeafletMouseEvent) => void }) {
@@ -109,6 +112,16 @@ export default function Home() {
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number; zoom?: number } | null>(null);
   const [routeData, setRouteData] = useState<RouteComparison | null>(null);
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
+
+  const selectedRoute = useMemo(() => {
+    if (!routeData || selectedRouteId == null) return null;
+    return routeData.routes.find((r) => r.id === selectedRouteId) ?? null;
+  }, [routeData, selectedRouteId]);
+
+  const journey = useRouteJourney({
+    route: selectedRoute,
+    realPosition: userLocation,
+  });
 
   const { data: deadzones } = useListDeadzones({
     type: filterType || undefined,
@@ -448,6 +461,8 @@ export default function Home() {
             />
           )}
 
+          <JourneyMarker state={journey.state} follow={journey.isSimulating} />
+
           {userLocation && (
             <Marker
               position={[userLocation.lat, userLocation.lng]}
@@ -463,6 +478,16 @@ export default function Home() {
             </Marker>
           )}
         </MapContainer>
+
+        <RouteAlertBanner
+          state={journey.state}
+          isSimulating={journey.isSimulating}
+          isPaused={journey.isPaused}
+          hasRoute={!!selectedRoute}
+          onStart={journey.startSimulation}
+          onPause={journey.pauseSimulation}
+          onStop={journey.stopSimulation}
+        />
       </div>
 
       <CreateReportDialog
