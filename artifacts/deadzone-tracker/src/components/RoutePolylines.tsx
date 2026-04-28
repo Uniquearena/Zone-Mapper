@@ -1,14 +1,15 @@
-import { Polyline, CircleMarker, Tooltip, useMap } from "react-leaflet";
-import { useEffect } from "react";
+import { Polyline, useMap } from "react-leaflet";
+import { useEffect, useMemo } from "react";
 import L from "leaflet";
-import type { RouteOption } from "@workspace/api-client-react";
+import type { RouteOption, RouteSegment } from "@workspace/api-client-react";
+import { closestIndex } from "@/lib/journey";
 
 interface Props {
   routes: RouteOption[];
   selectedId: number | null;
 }
 
-const ROUTE_COLORS = ["#3b82f6", "#a855f7", "#ec4899"];
+const ROUTE_BASE_COLORS = ["#3b82f6", "#a855f7", "#ec4899"];
 
 const SEGMENT_COLOR: Record<string, string> = {
   strong: "#22c55e",
@@ -16,6 +17,70 @@ const SEGMENT_COLOR: Record<string, string> = {
   dead: "#ef4444",
   unknown: "#64748b",
 };
+
+const STATUS_PRIORITY: Record<string, number> = {
+  dead: 3,
+  moderate: 2,
+  unknown: 1,
+  strong: 0,
+};
+
+/**
+ * Split the route geometry into colored chunks. Each pair of consecutive
+ * sample points defines one chunk; the chunk is colored by whichever of the
+ * two samples has the worst signal (dead > moderate > unknown > strong) so a
+ * dead zone is never visually washed out.
+ */
+function buildColoredChunks(route: RouteOption): {
+  positions: [number, number][];
+  color: string;
+}[] {
+  const geometry = route.geometry as [number, number][];
+  if (geometry.length === 0 || route.segments.length === 0) return [];
+
+  // Map each sample → closest geometry index, then sort by index.
+  const ordered = route.segments
+    .map((seg, i) => ({
+      seg,
+      i,
+      idx: closestIndex(
+        { lat: seg.latitude, lng: seg.longitude },
+        geometry,
+      ),
+    }))
+    .sort((a, b) => a.idx - b.idx);
+
+  // Always anchor the chunks to the start and end vertices of the route.
+  const anchors: { idx: number; status: RouteSegment["status"] }[] = [];
+  anchors.push({ idx: 0, status: ordered[0].seg.status });
+  for (const o of ordered) {
+    if (o.idx > anchors[anchors.length - 1].idx) {
+      anchors.push({ idx: o.idx, status: o.seg.status });
+    }
+  }
+  if (anchors[anchors.length - 1].idx < geometry.length - 1) {
+    anchors.push({
+      idx: geometry.length - 1,
+      status: ordered[ordered.length - 1].seg.status,
+    });
+  }
+
+  const chunks: { positions: [number, number][]; color: string }[] = [];
+  for (let k = 0; k < anchors.length - 1; k++) {
+    const a = anchors[k];
+    const b = anchors[k + 1];
+    const status =
+      (STATUS_PRIORITY[a.status] ?? 0) >= (STATUS_PRIORITY[b.status] ?? 0)
+        ? a.status
+        : b.status;
+    // slice inclusive on both ends so chunks visually meet end-to-end.
+    const positions = geometry.slice(a.idx, b.idx + 1);
+    if (positions.length >= 2) {
+      chunks.push({ positions, color: SEGMENT_COLOR[status] ?? "#64748b" });
+    }
+  }
+  return chunks;
+}
 
 export function RoutePolylines({ routes, selectedId }: Props) {
   const map = useMap();
@@ -30,46 +95,66 @@ export function RoutePolylines({ routes, selectedId }: Props) {
     map.fitBounds(bounds, { padding: [40, 40] });
   }, [routes, selectedId, map]);
 
+  // Pre-compute colored chunks for every route once, so toggling selection
+  // doesn't recompute closestIndex (which is O(n*m)).
+  const coloredChunks = useMemo(() => {
+    const out = new Map<number, { positions: [number, number][]; color: string }[]>();
+    for (const r of routes) out.set(r.id, buildColoredChunks(r));
+    return out;
+  }, [routes]);
+
   return (
     <>
       {routes.map((route) => {
         const isSelected = route.id === selectedId;
-        const baseColor = ROUTE_COLORS[route.id % ROUTE_COLORS.length];
-        return (
-          <div key={route.id}>
-            {/* Underlay: solid route in its base color (dimmed if not selected) */}
+        const baseColor =
+          ROUTE_BASE_COLORS[route.id % ROUTE_BASE_COLORS.length];
+        const chunks = coloredChunks.get(route.id) ?? [];
+
+        if (!isSelected) {
+          // Non-selected alternative: dim, single base color, no segment detail.
+          return (
             <Polyline
+              key={route.id}
               positions={route.geometry as [number, number][]}
               pathOptions={{
                 color: baseColor,
-                weight: isSelected ? 7 : 4,
-                opacity: isSelected ? 0.9 : 0.35,
+                weight: 4,
+                opacity: 0.35,
+                lineCap: "round",
+                lineJoin: "round",
+                dashArray: "6 6",
+              }}
+            />
+          );
+        }
+
+        // Selected route: dark casing first, then color-coded chunks on top.
+        return (
+          <div key={route.id}>
+            <Polyline
+              positions={route.geometry as [number, number][]}
+              pathOptions={{
+                color: "#0a0d14",
+                weight: 10,
+                opacity: 0.75,
                 lineCap: "round",
                 lineJoin: "round",
               }}
             />
-            {/* Sample dots colored by signal status (only on selected route) */}
-            {isSelected &&
-              route.segments.map((s, i) => (
-                <CircleMarker
-                  key={i}
-                  center={[s.latitude, s.longitude]}
-                  radius={6}
-                  pathOptions={{
-                    color: "#0a0d14",
-                    weight: 1.5,
-                    fillColor: SEGMENT_COLOR[s.status] ?? "#64748b",
-                    fillOpacity: 0.95,
-                  }}
-                >
-                  <Tooltip direction="top" offset={[0, -4]}>
-                    <span className="text-xs font-mono">
-                      {s.status.toUpperCase()}
-                      {s.avgSignal != null ? ` · ${s.avgSignal} dBm` : ""}
-                    </span>
-                  </Tooltip>
-                </CircleMarker>
-              ))}
+            {chunks.map((chunk, i) => (
+              <Polyline
+                key={i}
+                positions={chunk.positions}
+                pathOptions={{
+                  color: chunk.color,
+                  weight: 7,
+                  opacity: 1,
+                  lineCap: "round",
+                  lineJoin: "round",
+                }}
+              />
+            ))}
           </div>
         );
       })}
