@@ -208,6 +208,83 @@ export const GetCarrierStatsResponseItem = zod.object({
 export const GetCarrierStatsResponse = zod.array(GetCarrierStatsResponseItem);
 
 /**
+ * Returns a weighted-average signal classification for the area around the given coordinate. Reports from the last 24 hours are weighted by recency (linear decay) and proximity (inverse distance).
+ * @summary Real-time weighted signal status at a point
+ */
+export const getSignalStatusQueryRadiusKmDefault = 1.5;
+
+export const GetSignalStatusQueryParams = zod.object({
+  lat: zod.coerce.number(),
+  lng: zod.coerce.number(),
+  radiusKm: zod.coerce.number().default(getSignalStatusQueryRadiusKmDefault),
+});
+
+export const GetSignalStatusResponse = zod.object({
+  latitude: zod.number(),
+  longitude: zod.number(),
+  avgSignal: zod
+    .number()
+    .nullish()
+    .describe("Weighted average dBm across nearby reports"),
+  status: zod
+    .enum(["strong", "moderate", "dead", "unknown"])
+    .describe("Strong (>-90 dBm), Moderate (-110 to -90), Dead (<-110)"),
+  reportCount: zod.number(),
+  confidence: zod
+    .number()
+    .describe("0-1 confidence based on report density and recency"),
+  lastUpdated: zod.coerce.date().nullable(),
+  radiusKm: zod.number().optional(),
+});
+
+/**
+ * Fetches up to 3 alternative driving routes between source and destination, samples points along each, and scores them by predicted signal quality. Recommends the route with the best signal score.
+ * @summary Compare route alternatives by signal coverage
+ */
+export const GetRoutesQueryParams = zod.object({
+  fromLat: zod.coerce.number(),
+  fromLng: zod.coerce.number(),
+  toLat: zod.coerce.number(),
+  toLng: zod.coerce.number(),
+});
+
+export const GetRoutesResponse = zod.object({
+  routes: zod.array(
+    zod.object({
+      id: zod.number(),
+      label: zod.string(),
+      distanceKm: zod.number(),
+      durationMin: zod.number(),
+      geometry: zod
+        .array(zod.array(zod.number()))
+        .describe("Polyline as [lat, lng] pairs"),
+      segments: zod.array(
+        zod.object({
+          latitude: zod.number(),
+          longitude: zod.number(),
+          status: zod
+            .enum(["strong", "moderate", "dead", "unknown"])
+            .describe(
+              "Strong (>-90 dBm), Moderate (-110 to -90), Dead (<-110)",
+            ),
+          avgSignal: zod.number().nullish(),
+        }),
+      ),
+      deadCount: zod.number(),
+      moderateCount: zod.number(),
+      strongCount: zod.number(),
+      unknownCount: zod.number(),
+      signalScore: zod
+        .number()
+        .describe("0-100 score (higher = better signal)"),
+    }),
+  ),
+  recommendedId: zod.number().describe("Route id with the best signal score"),
+  shortestId: zod.number().describe("Route id with the shortest distance"),
+  provider: zod.string().optional(),
+});
+
+/**
  * @summary DBSCAN clusters of nearby low-signal reports
  */
 export const getClustersQueryEpsKmDefault = 2;

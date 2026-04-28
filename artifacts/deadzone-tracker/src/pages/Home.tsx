@@ -18,12 +18,14 @@ import {
   Layers,
   EyeOff,
   Eye,
+  Route,
 } from "lucide-react";
 import {
   useListDeadzones,
   useListRecentDeadzones,
   DeadzoneType,
   DeadzoneSeverity,
+  type RouteComparison,
 } from "@workspace/api-client-react";
 
 import {
@@ -60,6 +62,8 @@ import { CreateReportDialog } from "@/components/CreateReportDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { HeatmapLayer } from "@/components/HeatmapLayer";
 import { ClusterInsightsPanel } from "@/components/ClusterInsightsPanel";
+import { RoutePlanner } from "@/components/RoutePlanner";
+import { RoutePolylines } from "@/components/RoutePolylines";
 import { useToast } from "@/hooks/use-toast";
 
 function MapEvents({ onMapClick }: { onMapClick: (e: L.LeafletMouseEvent) => void }) {
@@ -103,6 +107,8 @@ export default function Home() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [flyTarget, setFlyTarget] = useState<{ lat: number; lng: number; zoom?: number } | null>(null);
+  const [routeData, setRouteData] = useState<RouteComparison | null>(null);
+  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
 
   const { data: deadzones } = useListDeadzones({
     type: filterType || undefined,
@@ -161,12 +167,15 @@ export default function Home() {
       {/* Sidebar */}
       <div className="w-full md:w-80 border-r border-border bg-card flex flex-col z-10 shrink-0 shadow-lg order-2 md:order-1 h-72 md:h-auto md:min-h-0">
         <Tabs defaultValue="recent" className="flex flex-col h-full">
-          <TabsList className="grid grid-cols-2 m-2 mb-0 shrink-0">
-            <TabsTrigger value="recent" className="font-mono text-xs">
+          <TabsList className="grid grid-cols-3 m-2 mb-0 shrink-0">
+            <TabsTrigger value="recent" className="font-mono text-[10px] px-1">
               <Activity className="h-3 w-3 mr-1" /> RECENT
             </TabsTrigger>
-            <TabsTrigger value="clusters" className="font-mono text-xs">
+            <TabsTrigger value="clusters" className="font-mono text-[10px] px-1">
               <Crosshair className="h-3 w-3 mr-1" /> CLUSTERS
+            </TabsTrigger>
+            <TabsTrigger value="route" className="font-mono text-[10px] px-1">
+              <Route className="h-3 w-3 mr-1" /> ROUTE
             </TabsTrigger>
           </TabsList>
           <TabsContent value="recent" className="flex-1 mt-0 min-h-0 flex flex-col">
@@ -233,6 +242,14 @@ export default function Home() {
           <TabsContent value="clusters" className="flex-1 mt-0 min-h-0">
             <ClusterInsightsPanel
               onSelect={(lat, lng) => setFlyTarget({ lat, lng, zoom: 12 })}
+            />
+          </TabsContent>
+          <TabsContent value="route" className="flex-1 mt-0 min-h-0">
+            <RoutePlanner
+              onResult={setRouteData}
+              onSelectRoute={setSelectedRouteId}
+              selectedRouteId={selectedRouteId}
+              onFlyTo={(lat, lng, zoom) => setFlyTarget({ lat, lng, zoom })}
             />
           </TabsContent>
         </Tabs>
@@ -423,6 +440,13 @@ export default function Home() {
                 </Popup>
               </Marker>
             ))}
+
+          {routeData && routeData.routes.length > 0 && (
+            <RoutePolylines
+              routes={routeData.routes}
+              selectedId={selectedRouteId}
+            />
+          )}
 
           {userLocation && (
             <Marker

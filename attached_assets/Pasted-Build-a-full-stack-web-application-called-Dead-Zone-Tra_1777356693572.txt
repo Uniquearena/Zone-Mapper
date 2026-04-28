@@ -1,0 +1,80 @@
+Build a full-stack web application called “Dead Zone Tracker with Smart Routing” for India using Node.js (Express) for backend and React for frontend.
+
+FEATURES:
+
+1. Map Integration:
+- Use Google Maps API or Leaflet to display an interactive map of India.
+- Show user’s current location.
+- Overlay a heatmap where:
+  - Red = dead zone (very weak signal)
+  - Yellow = moderate signal
+  - Green = strong signal
+
+2. User Reporting System:
+- Create a form where users can submit:
+  - Signal strength (in dBm)
+  - GPS location (auto-detected)
+  - Network provider (Jio, Airtel, Vi)
+  - Timestamp (auto)
+  - Optional comments
+- Store data in a database (MongoDB or PostgreSQL)
+
+3. Database Design:
+- Create a table/collection “signal_reports” with fields:
+  id, latitude, longitude, signal_strength, provider, timestamp, weight
+- Weight should be used for prioritizing recent data
+
+4. Dead Zone Detection:
+- Implement DBSCAN clustering (using a library like scikit-learn or a JS equivalent)
+- Group nearby low-signal reports into clusters
+- Ignore noise (outliers)
+- Update clusters dynamically when new data is added
+
+5. Real-Time Signal Status API:
+- Create API endpoint:
+  GET /signal-status?lat=...&lng=...
+- Logic:
+  - Fetch reports from last 24 hours
+  - Apply weighted average (recent data gets higher weight)
+  - Classify:
+      signal < -110 → Red (Dead Zone)
+      -110 to -90 → Yellow (Moderate)
+      > -90 → Green (Strong)
+- Return JSON with:
+  avg_signal, status, report_count, confidence, last_updated
+
+6. Smart Routing Feature (MAIN FEATURE):
+- Allow user to input source and destination
+- Use Google Directions API to fetch multiple routes
+- For each route:
+  - Sample points along the route
+  - Query signal status API
+  - Calculate a “signal score” based on number of dead zones
+- Recommend route with best signal (not necessarily shortest)
+- Display route using:
+  - Red segments (dead zones)
+  - Yellow segments (moderate)
+  - Green segments (strong)
+
+7. UI/UX:
+- Mobile-first responsive design
+- Clean dashboard showing:
+  - Current signal status
+  - Number of reports
+  - Route comparison (best vs shortest)
+- Smooth map interaction
+
+8. Backend Structure:
+- Express server
+- REST APIs:
+  POST /report
+  GET /signal-status
+  GET /routes
+- Include basic error handling
+
+9. Extra:
+- Use geospatial queries for efficient location filtering
+- Add sample dummy data for testing
+- Include comments in code for explanation
+
+Generate working code structure with frontend, backend, and basic integration.

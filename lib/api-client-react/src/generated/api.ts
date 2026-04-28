@@ -24,10 +24,14 @@ import type {
   DeadzoneDetail,
   GetClustersParams,
   GetHotspotsParams,
+  GetRoutesParams,
+  GetSignalStatusParams,
   HealthStatus,
   Hotspot,
   ListDeadzonesParams,
   ListRecentDeadzonesParams,
+  RouteComparison,
+  SignalStatus,
   StatsSummary,
 } from "./api.schemas";
 
@@ -886,6 +890,196 @@ export function useGetCarrierStats<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetCarrierStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Returns a weighted-average signal classification for the area around the given coordinate. Reports from the last 24 hours are weighted by recency (linear decay) and proximity (inverse distance).
+ * @summary Real-time weighted signal status at a point
+ */
+export const getGetSignalStatusUrl = (params: GetSignalStatusParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/signal-status?${stringifiedParams}`
+    : `/api/signal-status`;
+};
+
+export const getSignalStatus = async (
+  params: GetSignalStatusParams,
+  options?: RequestInit,
+): Promise<SignalStatus> => {
+  return customFetch<SignalStatus>(getGetSignalStatusUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSignalStatusQueryKey = (params?: GetSignalStatusParams) => {
+  return [`/api/signal-status`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetSignalStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSignalStatus>>,
+  TError = ErrorType<unknown>,
+>(
+  params: GetSignalStatusParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSignalStatus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSignalStatusQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSignalStatus>>> = ({
+    signal,
+  }) => getSignalStatus(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSignalStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSignalStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSignalStatus>>
+>;
+export type GetSignalStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Real-time weighted signal status at a point
+ */
+
+export function useGetSignalStatus<
+  TData = Awaited<ReturnType<typeof getSignalStatus>>,
+  TError = ErrorType<unknown>,
+>(
+  params: GetSignalStatusParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSignalStatus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSignalStatusQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Fetches up to 3 alternative driving routes between source and destination, samples points along each, and scores them by predicted signal quality. Recommends the route with the best signal score.
+ * @summary Compare route alternatives by signal coverage
+ */
+export const getGetRoutesUrl = (params: GetRoutesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/routes?${stringifiedParams}`
+    : `/api/routes`;
+};
+
+export const getRoutes = async (
+  params: GetRoutesParams,
+  options?: RequestInit,
+): Promise<RouteComparison> => {
+  return customFetch<RouteComparison>(getGetRoutesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRoutesQueryKey = (params?: GetRoutesParams) => {
+  return [`/api/routes`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRoutesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRoutes>>,
+  TError = ErrorType<void>,
+>(
+  params: GetRoutesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRoutes>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRoutesQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRoutes>>> = ({
+    signal,
+  }) => getRoutes(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRoutes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRoutesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRoutes>>
+>;
+export type GetRoutesQueryError = ErrorType<void>;
+
+/**
+ * @summary Compare route alternatives by signal coverage
+ */
+
+export function useGetRoutes<
+  TData = Awaited<ReturnType<typeof getRoutes>>,
+  TError = ErrorType<void>,
+>(
+  params: GetRoutesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRoutes>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRoutesQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

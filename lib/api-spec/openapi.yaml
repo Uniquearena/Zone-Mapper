@@ -16,6 +16,8 @@ tags:
     description: Aggregate statistics
   - name: clusters
     description: DBSCAN cluster analysis
+  - name: routing
+    description: Signal-aware route planning
 paths:
   /healthz:
     get:
@@ -190,6 +192,77 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/CarrierStat"
+  /signal-status:
+    get:
+      operationId: getSignalStatus
+      tags: [routing]
+      summary: Real-time weighted signal status at a point
+      description: >-
+        Returns a weighted-average signal classification for the area around the
+        given coordinate. Reports from the last 24 hours are weighted by recency
+        (linear decay) and proximity (inverse distance).
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: lng
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: radiusKm
+          schema:
+            type: number
+            default: 1.5
+      responses:
+        "200":
+          description: Signal status snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignalStatus"
+  /routes:
+    get:
+      operationId: getRoutes
+      tags: [routing]
+      summary: Compare route alternatives by signal coverage
+      description: >-
+        Fetches up to 3 alternative driving routes between source and
+        destination, samples points along each, and scores them by predicted
+        signal quality. Recommends the route with the best signal score.
+      parameters:
+        - in: query
+          name: fromLat
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: fromLng
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: toLat
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: toLng
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Compared routes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteComparison"
+        "502":
+          description: Upstream routing provider failed
   /clusters:
     get:
       operationId: getClusters
@@ -422,3 +495,109 @@ components:
           type: array
           items:
             type: integer
+    SignalClass:
+      type: string
+      enum: [strong, moderate, dead, unknown]
+      description: Strong (>-90 dBm), Moderate (-110 to -90), Dead (<-110)
+    SignalStatus:
+      type: object
+      required:
+        [latitude, longitude, status, reportCount, confidence, lastUpdated]
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        avgSignal:
+          type: number
+          nullable: true
+          description: Weighted average dBm across nearby reports
+        status:
+          $ref: "#/components/schemas/SignalClass"
+        reportCount:
+          type: integer
+        confidence:
+          type: number
+          description: 0-1 confidence based on report density and recency
+        lastUpdated:
+          type: string
+          format: date-time
+          nullable: true
+        radiusKm:
+          type: number
+    RouteSegment:
+      type: object
+      required: [latitude, longitude, status]
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        status:
+          $ref: "#/components/schemas/SignalClass"
+        avgSignal:
+          type: number
+          nullable: true
+    RouteOption:
+      type: object
+      required:
+        [
+          id,
+          label,
+          distanceKm,
+          durationMin,
+          geometry,
+          segments,
+          deadCount,
+          moderateCount,
+          strongCount,
+          unknownCount,
+          signalScore,
+        ]
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+        distanceKm:
+          type: number
+        durationMin:
+          type: number
+        geometry:
+          type: array
+          description: Polyline as [lat, lng] pairs
+          items:
+            type: array
+            items:
+              type: number
+        segments:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteSegment"
+        deadCount:
+          type: integer
+        moderateCount:
+          type: integer
+        strongCount:
+          type: integer
+        unknownCount:
+          type: integer
+        signalScore:
+          type: number
+          description: 0-100 score (higher = better signal)
+    RouteComparison:
+      type: object
+      required: [routes, recommendedId, shortestId]
+      properties:
+        routes:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteOption"
+        recommendedId:
+          type: integer
+          description: Route id with the best signal score
+        shortestId:
+          type: integer
+          description: Route id with the shortest distance
+        provider:
+          type: string

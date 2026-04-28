@@ -113,6 +113,63 @@ export interface Cluster {
   reportIds?: number[];
 }
 
+/**
+ * Strong (>-90 dBm), Moderate (-110 to -90), Dead (<-110)
+ */
+export type SignalClass = (typeof SignalClass)[keyof typeof SignalClass];
+
+export const SignalClass = {
+  strong: "strong",
+  moderate: "moderate",
+  dead: "dead",
+  unknown: "unknown",
+} as const;
+
+export interface SignalStatus {
+  latitude: number;
+  longitude: number;
+  /** Weighted average dBm across nearby reports */
+  avgSignal?: number | null;
+  status: SignalClass;
+  reportCount: number;
+  /** 0-1 confidence based on report density and recency */
+  confidence: number;
+  lastUpdated: string | null;
+  radiusKm?: number;
+}
+
+export interface RouteSegment {
+  latitude: number;
+  longitude: number;
+  status: SignalClass;
+  avgSignal?: number | null;
+}
+
+export interface RouteOption {
+  id: number;
+  label: string;
+  distanceKm: number;
+  durationMin: number;
+  /** Polyline as [lat, lng] pairs */
+  geometry: number[][];
+  segments: RouteSegment[];
+  deadCount: number;
+  moderateCount: number;
+  strongCount: number;
+  unknownCount: number;
+  /** 0-100 score (higher = better signal) */
+  signalScore: number;
+}
+
+export interface RouteComparison {
+  routes: RouteOption[];
+  /** Route id with the best signal score */
+  recommendedId: number;
+  /** Route id with the shortest distance */
+  shortestId: number;
+  provider?: string;
+}
+
 export type ListDeadzonesParams = {
   type?: DeadzoneType;
   severity?: DeadzoneSeverity;
@@ -125,6 +182,19 @@ export type ListRecentDeadzonesParams = {
 
 export type GetHotspotsParams = {
   limit?: number;
+};
+
+export type GetSignalStatusParams = {
+  lat: number;
+  lng: number;
+  radiusKm?: number;
+};
+
+export type GetRoutesParams = {
+  fromLat: number;
+  fromLng: number;
+  toLat: number;
+  toLng: number;
 };
 
 export type GetClustersParams = {
